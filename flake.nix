@@ -1,43 +1,34 @@
 {
   inputs = {
+    flake-parts.url = "github:hercules-ci/flake-parts";
     nixpkgs.url = "github:NixOS/nixpkgs/nixos-unstable";
-
-    nix4vscode = {
-      url = "github:nix-community/nix4vscode";
-      flake = false;
-    };
   };
 
-  outputs = { self, ... } @ inputs:
-  let
-    # https://ayats.org/blog/no-flake-utils
-    eachSystem = function: inputs.nixpkgs.lib.genAttrs [
-      "x86_64-linux"
-      "x86_64-darwin"
-      "aarch64-linux"
-      "aarch64-darwin"
-    ] (system: function (import inputs.nixpkgs {
-      inherit system;
-      config.allowUnfree = true;
-    }));
-  in {
-    packages = eachSystem (pkgs: {
-      default = pkgs.callPackage ({ rustPlatform }: rustPlatform.buildRustPackage rec {
-        pname = "nix4vscode";
-        version = "0.1.0";
+  outputs = inputs@{ flake-parts, ... }:
+    flake-parts.lib.mkFlake { inherit inputs; } {
+      systems = [ "x86_64-linux" "aarch64-linux" "aarch64-darwin" "x86_64-darwin" ];
+      perSystem = { config, self', inputs', pkgs, system, ... }: {
+        packages.default =
+        let
+          inherit (pkgs) lib rustPlatform;
+          inherit (lib.importTOML ./Cargo.toml) package;
 
-        src = inputs.nix4vscode;
+          pname = package.name;
+          version = package.version;
+        in rustPlatform.buildRustPackage {
+          inherit pname version;
 
-        cargoSha256 = "sha256-9BM0cpHvri9cACbQX++OmWr51fBQenJabNewszgwGDs=";
-      }) {};
-    });
+          src = lib.cleanSource ./.;
 
-    devShells = eachSystem (pkgs: {
-      default = pkgs.mkShell {
-        packages = with pkgs; [
-          python3
-        ];
+          cargoSha256 = "sha256-8Jb1QjJOV2Bnu/TQssdMmaAfWX7Aa2dEnnlkA3sE5MU=";
+        };
+
+        devShells.default = pkgs.mkShell {
+          packages = with pkgs; [
+            cargo
+            rustc
+          ];
+        };
       };
-    });
-  };
+    };
 }
