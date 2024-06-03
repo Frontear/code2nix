@@ -13,3 +13,8 @@ At the moment this script is hacked together really badly, mostly in an effort t
 ## License
 
 My shit is GNU GPL v3. Everything else is subject to their own. Formal statement will be here soon
+
+<!--
+Notes: :D
+ripunzip is too heavy honestly. Want to switch to diff crates from it.
+-->

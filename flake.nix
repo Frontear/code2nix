@@ -4,31 +4,30 @@
     nixpkgs.url = "github:NixOS/nixpkgs/nixos-unstable";
   };
 
-  outputs = inputs@{ flake-parts, ... }:
-    flake-parts.lib.mkFlake { inherit inputs; } {
-      systems = [ "x86_64-linux" "aarch64-linux" "aarch64-darwin" "x86_64-darwin" ];
-      perSystem = { config, self', inputs', pkgs, system, ... }: {
-        packages.default =
-        let
-          inherit (pkgs) lib rustPlatform;
-          inherit (lib.importTOML ./Cargo.toml) package;
+  outputs = inputs@{ flake-parts, ... }: flake-parts.lib.mkFlake { inherit inputs; } {
+    systems = [ "x86_64-linux" "aarch64-linux" "aarch64-darwin" "x86_64-darwin" ];
+    perSystem = { config, self', inputs', pkgs, system, ... }: {
+      packages.default = pkgs.callPackage ({ lib, rustPlatform }: rustPlatform.buildRustPackage {
+        inherit ((lib.importTOML ./Cargo.toml).package) name version;
 
-          pname = package.name;
-          version = package.version;
-        in rustPlatform.buildRustPackage {
-          inherit pname version;
+        src = lib.cleanSource ./.;
 
-          src = lib.cleanSource ./.;
+        nativeBuildInputs = with pkgs; [
+          pkg-config
+        ];
 
-          cargoSha256 = "sha256-8Jb1QjJOV2Bnu/TQssdMmaAfWX7Aa2dEnnlkA3sE5MU=";
-        };
+        buildInputs = with pkgs; [
+          openssl
+        ];
 
-        devShells.default = pkgs.mkShell {
-          packages = with pkgs; [
-            cargo
-            rustc
-          ];
-        };
+        cargoSha256 = "sha256-qDoSq8L4swOi7jXLCOTaCYbp6CDXNeDQRuo9oRMC67E=";
+      }) {};
+
+      devShells.default = pkgs.mkShell {
+        inputsFrom = [
+          self'.packages.default
+        ];
       };
     };
+  };
 }
