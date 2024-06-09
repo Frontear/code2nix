@@ -1,20 +1,26 @@
-# vsc2nix
-A simple wrapper script that uses [nix4vscode](https://github.com/nix-community/nix4vscode) to generate a nix expression of your vscode extensions.
+# code2nix
+A simple python script which downloads the latest versions of your currently installed vscode extensions and retrieves their metadata for declarative extensions via `extensionsFromVscodeMarketplace`.
 
-## How to use
+Some future implementation details include:
+- [ ] auto-updating produced expression
+- [ ] removing the json middleman (python -> nix)
+- [ ] parallelization (speeding up processing and downloads)
 
-At the moment this script is hacked together really badly, mostly in an effort to have more consistent declarations with my version of vscode.
-
-- Create an `extensions.txt` file with `code --list-extensions > extensions.txt`
-- Run the python script to write a `config.toml` file
-- Execute `nix run . config.toml > extensions.nix`
-- Import the resulting nix expression to your configuration
+## How to use?
+1. Generate the extensions json using `python src/main.py > ext.json`
+2. Convert it into a nix expression via `nix eval --impure --expr 'builtins.fromJSON (builtins.readFile ./ext.json)' > ext.nix`
+3. *optional*: Format the resulting expression with `nix run nixpkgs#nixfmt -- ext.nix`
+4. Within your configuration, copy this file over and attach it for your extensions as `pkgs.vscode-utils.extensionsFromVscodeMarketplace (import ./ext.nix)`, this may look like the following:
+    ```nix
+    # configuration.nix
+    { config, lib, pkgs, ... }: {
+        environment.systemPackages = with pkgs; [
+            (vscode-with-extensions.override {
+               vscodeExtensions = pkgs.vscode-utils.extensionsFromVscodeMarketplace (import ./ext.nix);
+            })
+        ];
+    }
+    ```
 
 ## License
-
-My shit is GNU GPL v3. Everything else is subject to their own. Formal statement will be here soon
-
-<!--
-Notes: :D
-ripunzip is too heavy honestly. Want to switch to diff crates from it.
--->
+All code in this project is licensed under the GNU GPL v3 license.
