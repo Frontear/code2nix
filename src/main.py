@@ -46,7 +46,7 @@ def main():
             s.write("[\n")
 
             for task in tasks:
-                if not task.done():
+                if not task.done() and len(tasks) > 1:
                     tasks.append(task)
                     continue
 
@@ -61,7 +61,7 @@ def main():
 
             s.write("]")
 
-            print("\033[K")
+            print("\033[K", end="\r")
             print(s.getvalue())
 
 if __name__ == "__main__":

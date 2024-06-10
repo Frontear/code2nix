@@ -5,6 +5,8 @@ Some future implementation details include:
 - [ ] auto-updating produced expression
 - [x] removing the json middleman (python -> nix)
 - [ ] parallelization (speeding up processing and downloads)
+- [ ] version checking for compatibility
+- [ ] reducing memory and network i/o requirements
 
 ## How to use?
 Generate the extensions json using `python src/main.py > ext.nix`, then attach it for your extensions as `pkgs.vscode-utils.extensionsFromVscodeMarketplace (import ./ext.nix)`.
