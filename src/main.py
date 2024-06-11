@@ -1,5 +1,6 @@
 import hashlib
 import json
+import os
 import sys
 import subprocess
 
@@ -35,7 +36,7 @@ def main():
 
         buff.write("[\n")
 
-        with ThreadPoolExecutor() as executor:
+        with ThreadPoolExecutor(max_workers=min(32, os.cpu_count() * 2)) as executor:
             for future in as_completed(( executor.submit(download_ext, ext) for ext in exts )):
                 name, publisher, version, sha256 = future.result()
 
