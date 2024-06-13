@@ -4,14 +4,27 @@ A simple python script which downloads the latest versions of your currently ins
 Some future implementation details include:
 - [ ] auto-updating produced expression
 - [x] removing the json middleman (python -> nix)
-- [ ] parallelization (speeding up processing and downloads)
+- [x] parallelization (speeding up processing and downloads)
 - [ ] version checking for compatibility
 - [ ] reducing memory and network i/o requirements
 
 ## How to use?
-Generate the extensions json using `python src/main.py > ext.nix`, then attach it for your extensions as `pkgs.vscode-utils.extensionsFromVscodeMarketplace (import ./ext.nix)`.
-This may look like the following:
-```nix
+The syntax for the command follows `main.py N {latest,current}`.
+
+- **N** (default `nproc`): no. of concurrent extension downloads at a time
+- **{latest,current}** (default `"current"`): whether to consider the currently installed version of an extension or simply pull from latest
+
+```console
+$ python src/main.py $(nproc) latest > latest.nix # the latest versions of your extensions
+$ python src/main.py $(nproc) current > current.nix # the current versions of your extensions
+```
+
+Import the file created from the above commands into your configurations.
+<details>
+    <summary>NixOS Configuration</summary>
+    <br />
+    <div class="highlight highlight-source-nix">
+        <pre>
 # configuration.nix
 { config, lib, pkgs, ... }: {
     environment.systemPackages = with pkgs; [
@@ -20,7 +33,23 @@ This may look like the following:
         })
     ];
 }
-```
+        </pre>
+    </div>
+</details>
+<details>
+    <summary>Home Manager Configuration</summary>
+    <br />
+    <div class="highlight highlight-source-nix">
+        <pre>
+# home.nix
+{ config, lib, pkgs, ... }: {
+    programs.vscode.enable = true;
+    programs.vscode.extensions = pkgs.vscode-utils.extensionsFromVscodeMarketplace (import ./ext.nix);
+}
+        </pre>
+    </div>
+</details>
+
 
 ## License
-All code in this project is licensed under the GNU GPL v3 license.
+All code in this project is licensed under the GNU GPL v3 license. Extensions remained licensed under their original license and any other licenses that pertain to them (this license excluded).
