@@ -1,20 +1,18 @@
 {
   lib,
-  python3,
-  writeShellApplication,
+  buildPythonApplication,
+  setuptools,
 }:
-let
-  src = lib.cleanSource ../src;
-in writeShellApplication {
-  name = "code2nix";
+buildPythonApplication {
+  pname = "code2nix";
+  version = "0.1.0";
 
-  runtimeInputs = [
-    python3
+  src = lib.cleanSource ../.;
+
+  pyproject = true;
+  build-system = [
+    setuptools
   ];
-
-  text = ''
-    python ${src}/main.py "$@"
-  '';
 
   meta = with lib; {
     description = "A simple python script which downloads the latest versions of your currently installed vscode extensions and outputs a nix expression wrapping `extensionsFromMarketplace`";
