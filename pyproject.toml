@@ -1,9 +1,0 @@
-[project]
-name = "code2nix"
-version = "0.1.0"
-
-[tool.setuptools.packages]
-find = {}
-
-[project.scripts]
-code2nix = "src.main:main"
