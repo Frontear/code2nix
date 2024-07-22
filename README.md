@@ -14,6 +14,11 @@ The syntax for the command follows `main.py N {latest,current}`.
 - **N** (default `nproc`): no. of concurrent extension downloads at a time
 - **{latest,current}** (default `"current"`): whether to consider the currently installed version of an extension or simply pull from latest
 
+> [!NOTE]
+> Due to unfixable issues on my end, please note that trying to pull the latest versions will almost always be 2x longer.
+> This is due to the fact that I have to download the vsix packages twice in order to guarantee consistency.
+> See [the "rewrite" branch](https://github.com/Frontear/code2nix/tree/rewrite) for more details.
+
 ```console
 $ python src/main.py $(nproc) latest > latest.nix # the latest versions of your extensions
 $ python src/main.py $(nproc) current > current.nix # the current versions of your extensions

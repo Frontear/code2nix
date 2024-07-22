@@ -12,7 +12,6 @@ from urllib.request import urlopen
 from zipfile import ZipFile
 
 BIN_VSCODE = which("code")
-BIN_HASH = which("nix-hash")
 BIN_PREFETCH = which("nix-prefetch-url")
 
 def run_cmd(bin, *args):
@@ -21,8 +20,9 @@ def run_cmd(bin, *args):
 def download_ext(ext, current):
     publisher, _, name_ver = ext.partition(".")
     name, _, version = name_ver.partition("@")
+
     if current:
-        url = f"https://marketplace.visualstudio.com/_apis/public/gallery/publishers/{publisher}/vsextensions/{name}/{version}/vspackage"
+        url = f"https://{publisher}.gallery.vsassets.io/_apis/public/gallery/publisher/{publisher}/extension/{name}/{version}/assetbyname/Microsoft.VisualStudio.Services.VSIXPackage"
     else:
         url = f"https://{publisher}.gallery.vsassets.io/_apis/public/gallery/publisher/{publisher}/extension/{name}/latest/assetbyname/Microsoft.VisualStudio.Services.VSIXPackage"
 
@@ -34,7 +34,10 @@ def download_ext(ext, current):
         with urlopen(url) as resp, BytesIO(resp.read()) as fp, ZipFile(fp) as z, z.open("extension/package.json") as f:
             # TODO: run both in parallel
             version = json.load(f)["version"]
-            sha256 = run_cmd(BIN_HASH, "--to-base32", "--type", "sha256", hashlib.sha256(fp.read()).hexdigest())[0]
+
+        # I love having to download something twice. see: https://github.com/Frontear/code2nix/tree/rewrite
+        url = f"https://{publisher}.gallery.vsassets.io/_apis/public/gallery/publisher/{publisher}/extension/{name}/{version}/assetbyname/Microsoft.VisualStudio.Services.VSIXPackage"
+        sha256 = run_cmd(BIN_PREFETCH, url)[0]
 
     return ( name, publisher, version, sha256 )
 
