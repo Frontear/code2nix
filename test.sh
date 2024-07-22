@@ -13,10 +13,11 @@ function extension() {
     curl --silent -o "$file" "https://${pub}.gallery.vsassets.io/_apis/public/gallery/publisher/${pub}/extension/${name}/${ver}/assetbyname/Microsoft.VisualStudio.Services.VSIXPackage"
     
     if [ "$ver" = "latest" ]; then
-        local ver=$(jq -r '.version' <(unzip -qc "$file" "extension/package.json"))
+        ver=$(jq -r '.version' <(unzip -qc "$file" "extension/package.json"))
     fi
 
-    local hash=$(nix-hash --flat --base32 --type sha256 "$file" 2> /dev/null)
+    hash=$(nix-prefetch-url "https://${pub}.gallery.vsassets.io/_apis/public/gallery/publisher/${pub}/extension/${name}/${ver}/assetbyname/Microsoft.VisualStudio.Services.VSIXPackage" 2> /dev/null)
+    #local hash=$(nix-hash --flat --base32 --type sha256 "$file" 2> /dev/null)
 
     rm -rf "$tmp"
 

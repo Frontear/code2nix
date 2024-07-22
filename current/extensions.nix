@@ -261,7 +261,7 @@
     name = "cpptools";
     publisher = "ms-vscode";
     version = "1.21.1";
-    sha256 = "sha256-ET+asP0gae+LX2JCR9/YUYyjJ/w5TGzZSFgpF5zryG0=";
+    sha256 = "0vf8xff1faaq93cnqk1rzhks732iv3glfhk2by5yys90znq9lgqi";
   }
   {
     name = "vsliveshare";
@@ -321,7 +321,7 @@
     name = "rust-analyzer";
     publisher = "rust-lang";
     version = "0.4.2044";
-    sha256 = "10bbfk8j5y3xryj1gkpcbdrn6s1k288x9g02p66rq7jaq388njfg";
+    sha256 = "18d80q1z9zp5am8drjnbpzc0dbww43gbkyvmfqzffwqkvds9x8vf";
   }
   {
     name = "scala";

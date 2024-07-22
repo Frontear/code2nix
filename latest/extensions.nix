@@ -315,7 +315,7 @@
     name = "java";
     publisher = "redhat";
     version = "1.33.2024072008";
-    sha256 = "sha256-gefGaWMJ9JlzVAJkOjrtZV4Fhdxj068189mbhT1QW0k=";
+    sha256 = "0java0yqb6yrycsszlv3vj2hapk5xlx3lr02airrkx09cdlwdrw1";
   }
   {
     name = "rust-analyzer";
