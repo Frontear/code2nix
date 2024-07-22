@@ -254,14 +254,14 @@
   {
     name = "vscode-pylance";
     publisher = "ms-python";
-    version = "2024.7.100";
-    sha256 = "18rijm9acd74yf718m7l3zra7qk7fkn1x1560nbasgjn3h95iq4z";
+    version = "2024.7.101";
+    sha256 = "1wgqm1bm7vnvd1bpbp0xn5nvgbmmaxdh469mrhmiimwl3zqppm0i";
   }
   {
     name = "cpptools";
     publisher = "ms-vscode";
-    version = "1.21.1";
-    sha256 = "0vf8xff1faaq93cnqk1rzhks732iv3glfhk2by5yys90znq9lgqi";
+    version = "1.21.2";
+    sha256 = "086p3ggw3vi068kmk869pfxs7nn232787x53qz3j9rm9wwi49djl";
   }
   {
     name = "vsliveshare";
