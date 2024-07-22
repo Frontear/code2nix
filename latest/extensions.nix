@@ -321,7 +321,7 @@
     name = "rust-analyzer";
     publisher = "rust-lang";
     version = "0.4.2044";
-    sha256 = "18d80q1z9zp5am8drjnbpzc0dbww43gbkyvmfqzffwqkvds9x8vf";
+    sha256 = "10bbfk8j5y3xryj1gkpcbdrn6s1k288x9g02p66rq7jaq388njfg";
   }
   {
     name = "scala";
