@@ -59,14 +59,14 @@ function generate_expressions() {
   pkgs ? import <nixpkgs> { config.allowUnfree = true; }
 }:
 pkgs.vscode-with-extensions.override {
-  vscodeExtensions = pkgs.vscode-utils.extensionsFromVscodeMarketplace (import ./$(basename "$ext_nix");
+vscodeExtensions = pkgs.vscode-utils.extensionsFromVscodeMarketplace (import ./$(basename "$ext_nix"));
 }
 EOF
 
     echo "$pkg_nix"
 }
 
-if ! which code; then
+if ! which code >> /dev/null; then
     echo "VSCode not found in PATH, cannot continue"
     exit 1
 fi
