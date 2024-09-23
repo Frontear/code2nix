@@ -1,4 +1,3 @@
-import hashlib
 import json
 import os
 import sys
@@ -8,6 +7,7 @@ from argparse import ArgumentParser
 from concurrent.futures import ThreadPoolExecutor, as_completed
 from io import StringIO, BytesIO
 from shutil import which
+from sortedcontainers import SortedDict
 from urllib.request import urlopen
 from zipfile import ZipFile
 
@@ -43,26 +43,28 @@ def download_ext(ext, current):
 
 def main():
     parser = ArgumentParser(description="Downloads the latest version of your vscode extensions and outputs them into a nix expression")
-    parser.add_argument("workers", default=os.cpu_count(), metavar="N", type=int, help="How many extensions to download concurrently (default: `os.cpu_count()`)")
+    parser.add_argument("workers", default=os.cpu_count(), metavar="N", type=int, help=f"How many extensions to download concurrently (default: `{os.cpu_count()}`)")
     parser.add_argument("strategy", default="current", choices=["latest", "current"], help="Download strategy for downloading extensions, either by current version or by latest found (default: current)")
 
     args = parser.parse_args()
 
+    ext_dict = SortedDict()
+    exts = run_cmd(BIN_VSCODE, "--list-extensions", "--show-versions" if args.strategy == "current" else "")
+
+    with ThreadPoolExecutor(max_workers=args.workers) as executor:
+        for future in as_completed(( executor.submit(download_ext, ext, args.strategy == "current") for ext in exts )):
+            name, publisher, version, sha256 = future.result()
+            ext_dict[name] = (publisher, version, sha256)
+
     with StringIO("") as buff:
-        exts = run_cmd(BIN_VSCODE, "--list-extensions", "--show-versions" if args.strategy == "current" else "")
-
         buff.write("[\n")
-
-        with ThreadPoolExecutor(max_workers=args.workers) as executor:
-            for future in as_completed(( executor.submit(download_ext, ext, args.strategy == "current") for ext in exts )):
-                name, publisher, version, sha256 = future.result()
-
-                buff.write("  {\n" +
-                          f"    name = \"{name}\";\n" +
-                          f"    publisher = \"{publisher}\";\n" +
-                          f"    version = \"{version}\";\n" +
-                          f"    sha256 = \"{sha256}\";\n" +
-                           "  }\n")
+        for name, vals in ext_dict.items():
+            buff.write("  {\n" +
+                      f"    name = \"{name}\";\n" +
+                      f"    publisher = \"{vals[0]}\";\n" +
+                      f"    version = \"{vals[1]}\";\n" +
+                      f"    sha256 = \"{vals[2]}\";\n" +
+                       "  }\n")
 
         buff.write("]")
 

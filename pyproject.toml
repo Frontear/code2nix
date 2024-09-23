@@ -1,6 +1,9 @@
 [project]
 name = "code2nix"
 version = "0.1.0"
+dependencies = [
+  "sortedcontainers"
+]
 
 [tool.setuptools.packages]
 find = {}
