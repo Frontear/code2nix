@@ -1,9 +1,9 @@
 {
-  mkShellNoCC,
+  mkShell,
 
   code2nix,
 }:
-mkShellNoCC {
+mkShell {
   inputsFrom = [
     code2nix
   ];
