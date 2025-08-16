@@ -1,6 +1,9 @@
 {
   lib,
   rustPlatform,
+
+  pkg-config,
+  openssl,
 }:
 rustPlatform.buildRustPackage (finalAttrs: {
   pname = "code2nix";
@@ -16,6 +19,14 @@ rustPlatform.buildRustPackage (finalAttrs: {
   };
 
   cargoLock.lockFile = ../../Cargo.lock;
+
+  nativeBuildInputs = [
+    pkg-config
+  ];
+
+  buildInputs = [
+    openssl
+  ];
 
   meta = with lib; {
     homepage = "https://github.com/Frontear/code2nix";
