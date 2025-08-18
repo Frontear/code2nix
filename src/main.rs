@@ -1,109 +1,143 @@
 use std::error::Error;
-use std::io::Cursor;
-use std::io::Read;
-use std::path::PathBuf;
+use std::process::Command;
 
-use clap::Parser;
 use reqwest::blocking::Client;
-use serde_json::Value;
-use sha256;
+use serde::{ Deserialize, Serialize };
 use tempfile::NamedTempFile;
-use zip::ZipArchive;
 
-use code2nix::*;
+#[derive(Debug, Deserialize)]
+#[serde(rename_all = "camelCase")]
+struct RawGalleryExtensionPublisher {
+  publisher_name: String,
+}
 
-fn from_code() -> Vec<Extension> {
+#[derive(Debug, Deserialize)]
+#[serde(rename_all = "camelCase")]
+struct RawGalleryExtensionVersion {
+  asset_uri: String,
+  #[serde(default)]
+  target_platform: String,
+  version: String,
+}
+
+#[derive(Debug, Deserialize)]
+#[serde(rename_all = "camelCase")]
+struct RawGalleryExtension {
+  extension_name: String,
+  publisher: RawGalleryExtensionPublisher,
+  versions: Vec<RawGalleryExtensionVersion>,
+}
+
+#[derive(Debug, Deserialize)]
+struct RawGalleryQueryResultType {
+  extensions: Vec<RawGalleryExtension>,
+}
+
+#[derive(Debug, Deserialize)]
+struct RawGalleryQueryResult {
+  results: Vec<RawGalleryQueryResultType>,
+}
+
+#[derive(Debug, Serialize)]
+struct Extension {
+  arch: String,
+  hash: String,
+  name: String,
+  publisher: String,
+  version: String,
+}
+
+fn main() -> Result<(), Box<dyn Error>> {
+  let out = Command::new("code")
+    .args([ "--list-extensions", "--show-versions" ])
+    .output()?;
+
   let mut exts = Vec::new();
-
-  let out = run_cmd("code", vec![ "--list-extensions", "--show-versions" ]);
-  let lines = out.lines();
-
-  for line in lines {
+  for line in str::from_utf8(&out.stdout)?.lines() {
     let (publisher, name_version) = line.split_once('.').unwrap();
     let (name, version) = name_version.split_once('@').unwrap();
 
     exts.push(Extension {
-      publisher: publisher.to_owned(),
-      name: name.to_owned(),
-      version: Some(version.to_owned()),
-      arch: None,
-      hash: None,
+      arch: "".into(),
+      hash: "".into(),
+      name: name.into(),
+      publisher: publisher.into(),
+      version: version.into(),
     });
   }
 
-  return exts;
-}
-
-fn from_file(file: &PathBuf) -> Vec<Extension> {
-  let mut exts: Vec<Extension>;
-
-  let out = run_cmd("nix", vec![ "eval", "--json", "--file", file.to_str().unwrap() ]);
-  exts = serde_json::from_str(out.as_str()).unwrap();
-
-  for ext in exts.iter_mut() {
-    // forcefully resolve the latest version
-    ext.version = None;
-  }
-
-  return exts;
-}
-
-fn download_ext(client: &Client, ext: &mut Extension) -> Result<(), Box<dyn Error>> {
-  let resp = client
-    .get(ext.url())
-    .send()
-    .expect(format!("Failed to download extension ({}.{}).", ext.publisher, ext.name).as_str())
-    .bytes()?;
-
-  if ext.version == None || ext.arch == None {
-    let mut archive = ZipArchive::new(Cursor::new(resp.as_ref()))?;
-    let json: Value = serde_json::from_reader(archive.by_name("extension/package.json")?)?;
-
-    ext.version = Some(json.as_object().unwrap()["version"].as_str().unwrap().to_owned());
-
-    let mut content = String::new();
-    archive.by_name("extension.vsixmanifest")?.read_to_string(&mut content)?;
-
-    if content.contains("TargetPlatform") {
-      // TODO: this is hardcoded to 'linux-x64' since that's all I use
-      ext.arch = Some("linux-x64".to_owned());
-    }
-    else {
-      ext.arch = Some("".to_owned());
-    }
-
-    // force a re-download with the new version and architecture fields
-    // to obtain the correct extension zip for hashing.
-    //
-    // See https://github.com/Frontear/code2nix/issues/2 for details.
-    return download_ext(client, ext);
-  }
-
-  let digest = sha256::digest(resp.as_ref());
-  let out = run_cmd("nix", vec![ "hash", "to-sri", "--type", "sha256", &digest ]);
-
-  ext.hash = Some(out);
-
-  return Ok(());
-}
-
-fn main() -> Result<(), Box<dyn Error>> {
-  let args = CliArgs::parse();
-  let mut exts = match &args.command {
-    ExtSource::Code => from_code(),
-    ExtSource::File(args) => from_file(&args.file),
-  };
-
   let client = Client::new();
-  for ext in exts.iter_mut() {
-    download_ext(&client, ext)?;
+  let mut body = String::from(r#"{
+    filters: [{
+      criteria: [@criteria@]
+    }],
+
+    flags: @flags@
+  }"#);
+
+  let mut criteria = String::new();
+  for ext in exts.iter() {
+    criteria.push_str(format!("{{ filterType: 7, value: \"{}.{}\" }}", &ext.publisher, &ext.name).as_str());
+    criteria.push(',');
+  }
+  criteria.pop(); // remove trailing comma
+
+
+  let mut flags = 0;
+  flags ^= 0x80; // IncludeAssetsURI
+  flags ^= 0x200; // IncludeLatestVersionOnly
+
+  body = body
+    .replace("@criteria@", &criteria)
+    .replace("@flags@", &flags.to_string());
+
+  let resp = client
+    .post("https://marketplace.visualstudio.com/_apis/public/gallery/extensionquery?api-version=7.2-preview.1")
+    .header("Content-Type", "application/json")
+    .header("Accept", "application/json")
+    .body(body)
+    .send()?
+    .bytes()?;
+  let mut json: RawGalleryQueryResult = serde_json::from_slice(resp.as_ref())?;
+
+  exts.clear();
+  for ext in json.results.pop().unwrap().extensions.iter() {
+    let name = ext.extension_name.clone();
+    let publisher = ext.publisher.publisher_name.clone();
+    let valid_version = ext.versions.iter().find(|&v|
+      v.target_platform.is_empty() || v.target_platform == "linux-x64"
+    ).unwrap();
+    let version = valid_version.version.clone();
+    let arch = valid_version.target_platform.clone();
+
+    let resp = client
+      .get(valid_version.asset_uri.clone() + "/Microsoft.VisualStudio.Services.VSIXPackage".into())
+      .send()?
+      .bytes()?;
+
+    let digest = sha256::digest(resp.as_ref());
+    let out = Command::new("nix")
+      .args([ "hash", "to-sri", "--type", "sha256", &digest ])
+      .output()?;
+
+    let hash = String::from_utf8(out.stdout)?;
+
+    exts.push(Extension {
+      arch,
+      hash,
+      name,
+      publisher,
+      version,
+    });
   }
 
   let file = NamedTempFile::new()?;
   serde_json::to_writer(&file, &exts)?;
-  let out = run_cmd("nix", vec![ "eval", "--impure", "--expr", format!("builtins.fromJSON (builtins.readFile {})", &file.path().to_str().unwrap()).as_str() ]);
+  let out = Command::new("nix")
+    .args([ "eval", "--impure", "--expr", format!("builtins.fromJSON (builtins.readFile {})", &file.path().to_str().unwrap()).as_str() ])
+    .output()?;
 
-  println!("{}", out);
+  println!("{}", str::from_utf8(&out.stdout)?);
 
   return Ok(());
 }
