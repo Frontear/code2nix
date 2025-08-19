@@ -1,6 +1,9 @@
 use std::error::Error;
+use std::fs;
+use std::path::Path;
 use std::process::Command;
 
+use clap::Parser;
 use reqwest::blocking::Client;
 
 use code2nix::*;
@@ -8,22 +11,42 @@ use code2nix::*;
 const QUERY_FLAGS: u32 = 0x80 ^ 0x200; // IncludeAssetsURI + IncludeLatestVersionOnly
 const QUERY_FILTER_TYPE: u32 = 7; // ExtensionName
 
-fn main() -> Result<(), Box<dyn Error>> {
-  let client = Client::new();
+fn parse_code() -> Result<Vec<String>, Box<dyn Error>> {
   let out = Command::new("code")
     .args([ "--list-extensions" ])
     .output()?;
+
+  return Ok(String::from_utf8(out.stdout)?.lines().map(|s| s.into()).collect());
+}
+
+fn parse_file(path: impl AsRef<Path>) -> Result<Vec<String>, Box<dyn Error>> {
+  let mut exts = Vec::new();
+
+  for ext in nix::from_path::<Vec<models::Extension>>(path)?.into_iter() {
+    exts.push(format!("{}.{}", ext.publisher, ext.name));
+  }
+
+  return Ok(exts);
+}
+
+fn main() -> Result<(), Box<dyn Error>> {
+  let args = cli::Args::parse();
+  let client = Client::new();
+  let exts = match args.file {
+    Some(path) => parse_file(&path),
+    None => parse_code(),
+  }?;
 
   let mut query = api::QueryBody {
     filters: Vec::new(),
     flags: QUERY_FLAGS,
   };
 
-  for line in String::from_utf8(out.stdout)?.lines() {
+  for line in exts.into_iter() {
     query.filters.push(api::QueryFilter {
       criteria: vec![api::QueryCriteria {
         filter_type: QUERY_FILTER_TYPE,
-        value: line.to_string(),
+        value: line,
       }],
     });
   }
@@ -59,7 +82,11 @@ fn main() -> Result<(), Box<dyn Error>> {
     });
   }
 
-  println!("{}", nix::to_string(&exts)?);
+  let expr = nix::to_string(&exts)?;
+  match args.out {
+    Some(path) => fs::write(&path, expr)?,
+    None => println!("{}", expr),
+  }
 
   return Ok(());
 }

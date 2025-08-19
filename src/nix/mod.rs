@@ -1,8 +1,17 @@
 use std::error::Error;
+use std::path::Path;
 use std::process::Command;
 
-use serde::Serialize;
+use serde::{ de::DeserializeOwned, Serialize };
 use tempfile::NamedTempFile;
+
+pub fn from_path<T: DeserializeOwned>(path: impl AsRef<Path>) -> Result<T, Box<dyn Error>> {
+  let out = Command::new("nix")
+    .args([ "eval", "--json", "--file", path.as_ref().to_str().unwrap() ])
+    .output()?;
+
+  return Ok(serde_json::from_slice(&out.stdout)?);
+}
 
 pub fn to_string<T: Serialize>(value: &T) -> Result<String, Box<dyn Error>> {
   let file = NamedTempFile::new()?;
