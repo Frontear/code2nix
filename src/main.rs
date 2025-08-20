@@ -8,19 +8,33 @@ use reqwest::blocking::Client;
 
 use code2nix::*;
 
-fn parse_code() -> Result<Vec<String>, Box<dyn Error>> {
+fn parse_code() -> Result<Vec<models::Extension>, Box<dyn Error>> {
+  let mut exts = Vec::new();
   let out = Command::new("code")
-    .args([ "--list-extensions" ])
+    .arg("--list-extensions")
     .output()?;
 
-  return Ok(String::from_utf8(out.stdout)?.lines().map(|s| s.into()).collect());
+  for line in String::from_utf8(out.stdout)?.lines() {
+    let (publisher, name) = line.split_once('.').unwrap();
+
+    exts.push(models::Extension {
+      name: name.into(),
+      publisher: publisher.into(),
+      version: "".into(),
+
+      arch: "".into(),
+      hash: "".into(),
+    });
+  }
+
+  return Ok(exts);
 }
 
-fn parse_file(path: impl AsRef<Path>) -> Result<Vec<String>, Box<dyn Error>> {
+fn parse_file(path: impl AsRef<Path>) -> Result<Vec<models::Extension>, Box<dyn Error>> {
   let mut exts = Vec::new();
 
   for ext in nix::from_path::<Vec<models::Extension>>(path)?.into_iter() {
-    exts.push(format!("{}.{}", ext.publisher, ext.name));
+    exts.push(ext);
   }
 
   return Ok(exts);
@@ -29,7 +43,7 @@ fn parse_file(path: impl AsRef<Path>) -> Result<Vec<String>, Box<dyn Error>> {
 fn main() -> Result<(), Box<dyn Error>> {
   let args = cli::Args::parse();
   let client = Client::new();
-  let exts = match args.file {
+  let mut exts = match args.file {
     Some(path) => parse_file(&path),
     None => parse_code(),
   }?;
@@ -39,11 +53,11 @@ fn main() -> Result<(), Box<dyn Error>> {
     flags: vec![api::QueryFlags::IncludeAssetUri, api::QueryFlags::IncludeLatestVersionOnly],
   };
 
-  for line in exts.into_iter() {
+  for ext in exts.iter() {
     query.filters.push(api::QueryFilter {
       criteria: vec![api::QueryCriteria {
         filter_type: api::QueryFilterType::ExtensionName,
-        value: line,
+        value: format!("{}", ext),
       }],
     });
   }
@@ -55,13 +69,20 @@ fn main() -> Result<(), Box<dyn Error>> {
     .bytes()?;
   let resp: api::ResponseBody = serde_json::from_slice(resp.as_ref())?;
 
-  let mut exts = Vec::new();
-  for mut res in resp.results.into_iter() {
-    let ext = res.extensions.pop().unwrap();
+  let mut exts_iter = exts.iter_mut();
+  let mut resp_iter = resp.results.into_iter();
 
-    let ver_info = ext.versions.into_iter().find(|x| {
-      // NOTE: hard-coded 'linux-x64' because I don't use anything else.
-      return x.target_platform.is_empty() || x.target_platform == "linux-x64";
+  while let Some(ext) = exts_iter.next() {
+    let mut resp_extensions = resp_iter.next().unwrap().extensions;
+    if resp_extensions.len() != 1 {
+      eprintln!("Failed to query extension {}", ext);
+
+      continue;
+    }
+
+    let resp_ext = resp_extensions.pop().unwrap();
+    let ver_info = resp_ext.versions.into_iter().find(|v| {
+      return v.target_platform.is_empty() || v.target_platform == "linux-x64";
     }).unwrap();
 
     let resp = client
@@ -69,14 +90,9 @@ fn main() -> Result<(), Box<dyn Error>> {
       .send()?
       .bytes()?;
 
-    exts.push(models::Extension {
-      name: ext.extension_name,
-      publisher: ext.publisher.publisher_name,
-      version: ver_info.version,
-
-      arch: ver_info.target_platform,
-      hash: nix::hash(resp.as_ref()),
-    });
+    ext.arch = ver_info.target_platform;
+    ext.hash = nix::hash(resp.as_ref());
+    ext.version = ver_info.version;
   }
 
   let expr = nix::to_string(&exts)?;
