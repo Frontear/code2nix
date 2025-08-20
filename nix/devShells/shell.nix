@@ -3,19 +3,22 @@
 
   code2nix,
 
-  vscode-with-extensions,
+  vscode-extensions,
   vscode-utils,
+  vscode-with-extensions,
 }:
-mkShell {
+let
+  vscodeExtensions = [
+    vscode-extensions.rust-lang.rust-analyzer
+  ] ++ vscode-utils.extensionsFromVscodeMarketplace (import ./extensions.nix);
+in mkShell {
   inputsFrom = [
     code2nix
   ];
 
   packages = [
     (vscode-with-extensions.override {
-      vscodeExtensions = vscode-utils.extensionsFromVscodeMarketplace (
-        import ./extensions.nix
-      );
+      inherit vscodeExtensions;
     })
   ];
 }

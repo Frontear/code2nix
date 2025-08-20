@@ -8,9 +8,6 @@ use reqwest::blocking::Client;
 
 use code2nix::*;
 
-const QUERY_FLAGS: u32 = 0x80 ^ 0x200; // IncludeAssetsURI + IncludeLatestVersionOnly
-const QUERY_FILTER_TYPE: u32 = 7; // ExtensionName
-
 fn parse_code() -> Result<Vec<String>, Box<dyn Error>> {
   let out = Command::new("code")
     .args([ "--list-extensions" ])
@@ -39,20 +36,20 @@ fn main() -> Result<(), Box<dyn Error>> {
 
   let mut query = api::QueryBody {
     filters: Vec::new(),
-    flags: QUERY_FLAGS,
+    flags: vec![api::QueryFlags::IncludeAssetUri, api::QueryFlags::IncludeLatestVersionOnly],
   };
 
   for line in exts.into_iter() {
     query.filters.push(api::QueryFilter {
       criteria: vec![api::QueryCriteria {
-        filter_type: QUERY_FILTER_TYPE,
+        filter_type: api::QueryFilterType::ExtensionName,
         value: line,
       }],
     });
   }
 
   let resp = client
-    .post("https://marketplace.visualstudio.com/_apis/public/gallery/extensionquery?api-version=7.2-preview.1")
+    .post(api::ENDPOINT)
     .json(&query)
     .send()?
     .bytes()?;
