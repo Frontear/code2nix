@@ -34,5 +34,9 @@ pub fn hash(content: &[u8]) -> String {
     .output()
     .unwrap();
 
-  return String::from_utf8(out.stdout).unwrap();
+  // remove the trailing newline character that comes from the output of `nix hash`
+  return str::from_utf8(&out.stdout)
+    .unwrap()
+    .trim()
+    .to_owned();
 }
