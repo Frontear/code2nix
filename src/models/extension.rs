@@ -9,9 +9,9 @@ pub struct Extension {
 
   #[serde(default)]
   pub arch: String,
-  #[serde(default, skip_deserializing)]
+  #[serde(default)]
   pub hash: String,
-  #[serde(default, skip_deserializing)]
+  #[serde(default)]
   pub version: String,
 }
 

@@ -75,7 +75,7 @@ fn main() -> Result<(), Box<dyn Error>> {
   while let Some(ext) = exts_iter.next() {
     let mut resp_extensions = resp_iter.next().unwrap().extensions;
     if resp_extensions.len() != 1 {
-      eprintln!("Failed to query extension {}", ext);
+      eprintln!("Query failed for extension {}, skipping...", ext);
 
       continue;
     }
