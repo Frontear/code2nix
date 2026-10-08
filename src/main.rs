@@ -1,5 +1,5 @@
 use std::error::Error;
-use std::fs;
+use std::{env, fs};
 use std::path::Path;
 use std::process::Command;
 
@@ -38,6 +38,13 @@ fn parse_file(path: impl AsRef<Path>) -> Result<Vec<models::Extension>, Box<dyn 
   }
 
   return Ok(exts);
+}
+
+fn get_target_platform() -> String {
+  return match (env::consts::OS, env::consts::ARCH) {
+    ("linux", "x86_64") => "linux-x64".into(),
+    (os, arch) => panic!("Target platform not implemented {}-{}", os, arch),
+  }
 }
 
 fn main() -> Result<(), Box<dyn Error>> {
@@ -82,7 +89,7 @@ fn main() -> Result<(), Box<dyn Error>> {
 
     let resp_ext = resp_extensions.pop().unwrap();
     let ver_info = resp_ext.versions.into_iter().find(|v| {
-      return v.target_platform.is_empty() || v.target_platform == "linux-x64";
+      return v.target_platform.is_empty() || v.target_platform == get_target_platform();
     }).unwrap();
 
     let resp = client
